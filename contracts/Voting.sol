@@ -1,59 +1,111 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-
-// Define the interface for the Candidates contract
-interface ICandidates {
-    function getCandidate(uint256 index) external view returns (string memory);
-}
+pragma solidity >=0.4.22 <0.9.0;
 
 contract Voting {
     // State variables
-    mapping(address => uint256) public votesReceived;
+    mapping(address => uint) public votesReceived;
     mapping(address => bool) public hasVoted;
-    address payable public owner;
-    ICandidates candidatesContract;
+    address public owner;
+    address[] public candidates;
 
     // Events
-    event VoteReceived(address candidate, uint256 totalVotes);
+    event VoteCast(address voter, address candidate, uint totalVotes);
+    event Withdrawal(address initiator, uint amount);
 
     // Modifiers
     modifier onlyOwner() {
-        require(msg.sender == owner, "Not owner");
+        require(msg.sender == owner, "Only the owner can call this function.");
         _;
     }
 
-    constructor(address candidatesAddress) {
-        owner = payable(msg.sender);
-        candidatesContract = ICandidates(candidatesAddress);
+    modifier hasNotVoted() {
+        require(!hasVoted[msg.sender], "You have already cast your vote.");
+        _;
     }
 
-    // External function to cast votes
-    function voteForCandidate(address candidate) external {
-        require(!hasVoted[msg.sender], "Already voted");
+    constructor() {
+        owner = msg.sender;
+    }
+
+    function addCandidate(address candidate) public onlyOwner {
+        require(candidate != address(0), "Invalid address.");
+        candidates.push(candidate);
+    }
+
+    function removeCandidate(address candidate) public onlyOwner {
+        for (uint i = 0; i < candidates.length; i++) {
+            if (candidates[i] == candidate) {
+                candidates[i] = candidates[candidates.length - 1];
+                candidates.pop();
+                return;
+            }
+        }
+    }
+
+    function vote(address candidate) external hasNotVoted {
+        require(isValidCandidate(candidate), "Not a valid candidate.");
         votesReceived[candidate] += 1;
         hasVoted[msg.sender] = true;
-        emit VoteReceived(candidate, votesReceived[candidate]);
+        emit VoteCast(msg.sender, candidate, votesReceived[candidate]);
     }
 
-    // View function to check the number of votes
-    function totalVotesFor(address candidate) public view returns (uint256) {
+    function resetVotingInstance() public onlyOwner {
+        for (uint i = 0; i < candidates.length; i++) {
+            votesReceived[candidates[i]] = 0;
+        }
+
+        delete candidates;
+    }
+
+    function isValidCandidate(address candidate) public view returns (bool) {
+        for (uint i = 0; i < candidates.length; i++) {
+            if (candidates[i] == candidate) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function getTotalVotes(address candidate) public view returns (uint) {
+        require(isValidCandidate(candidate), "Not a valid candidate.");
         return votesReceived[candidate];
     }
 
-    // Pure function to calculate the winning candidate (mock example)
-    function calculateWinner() public pure returns (uint256) {
-        // Placeholder for winner calculation
-        return 0;
+    function getWinner() public view returns (address winner, uint totalVotes) {
+        uint highestVotes = 0;
+        address highestVoter;
+        for (uint i = 0; i < candidates.length; i++) {
+            if (votesReceived[candidates[i]] > highestVotes) {
+                highestVotes = votesReceived[candidates[i]];
+                highestVoter = candidates[i];
+            }
+        }
+        return (highestVoter, highestVotes);
     }
 
-    // Withdrawal Pattern
-    function withdraw() external onlyOwner {
-        owner.transfer(address(this).balance);
+    function transferEther(address payable recipient, uint amount) external onlyOwner {
+        require(address(this).balance >= amount, "Insufficient balance.");
+        recipient.transfer(amount);
+        emit Withdrawal(msg.sender, amount);
     }
 
-    // Function to receive ETH
     receive() external payable {}
 
-    // ... Additional functions and patterns ...
+    function interactWithAnotherContract(address otherContract, bytes memory data) public onlyOwner {
+        (bool success, ) = otherContract.call(data);
+        require(success, "Interaction with the other contract failed.");
+    }
+
+    function deployAndInteractWithNewContract() public onlyOwner {
+        NewContract newContract = new NewContract();
+        newContract.performAction();
+    }
 }
 
+contract NewContract {
+    uint public actionCount;
+
+    function performAction() external {
+        actionCount += 1;
+    }
+}
