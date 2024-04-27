@@ -5,8 +5,10 @@ contract Voting {
     // State variables
     mapping(address => uint) public votesReceived;
     mapping(address => bool) public hasVoted;
+
     address public owner;
     address[] public candidates;
+    address[] public hasVotedKeys;
 
     // Events
     event VoteCast(address voter, address candidate, uint totalVotes);
@@ -25,6 +27,14 @@ contract Voting {
 
     constructor() {
         owner = msg.sender;
+    }
+
+    function setOwner(address newOwner) public onlyOwner {
+        owner = newOwner;
+    }
+
+    function getOwner() public view returns (address) {
+        return owner;
     }
 
     function addCandidate(address candidate) public onlyOwner {
@@ -46,7 +56,21 @@ contract Voting {
         require(isValidCandidate(candidate), "Not a valid candidate.");
         votesReceived[candidate] += 1;
         hasVoted[msg.sender] = true;
+        hasVotedKeys.push(msg.sender);
         emit VoteCast(msg.sender, candidate, votesReceived[candidate]);
+    }
+
+    function getVotesObject() public view returns (address[] memory, uint[] memory) {
+        uint[] memory votes = new uint[](candidates.length);
+        for (uint i = 0; i < candidates.length; i++) {
+            votes[i] = votesReceived[candidates[i]];
+        }
+
+        return (candidates, votes);
+    }
+
+    function getHasVoted() public view returns (address[] memory) {
+        return hasVotedKeys;
     }
 
     function resetVotingInstance() public onlyOwner {
@@ -55,6 +79,7 @@ contract Voting {
         }
 
         delete candidates;
+        delete hasVotedKeys;
     }
 
     function isValidCandidate(address candidate) public view returns (bool) {
