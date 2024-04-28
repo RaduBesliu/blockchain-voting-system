@@ -10,4 +10,13 @@ export const LocalComponents = {
     display: flex;
     gap: 16px;
   `,
+
+  GasEstimate: styled.span`
+    font-size: 16px;
+    font-weight: 500;
+  `,
+
+  RightWrapper: styled.div`
+    width: 100%;
+  `,
 };

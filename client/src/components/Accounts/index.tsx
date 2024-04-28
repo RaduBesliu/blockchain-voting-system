@@ -1,32 +1,61 @@
 import { LocalComponents } from './styled.ts';
-import { Dispatch, SetStateAction, useEffect, useState } from 'react';
+import { Dispatch, SetStateAction, useEffect, useRef, useState } from 'react';
 import { Account } from '../../types.ts';
 import { Button } from '@mui/material';
 import { ethers } from 'ethers';
-
-const WIN_AMOUNT_ETH = '5000000';
+import { WIN_AMOUNT_ETH } from '../../App.tsx';
+import Snackbar from '@mui/material/Snackbar';
 
 const Accounts = ({
   provider,
   accounts,
   voteContract,
+  candidateManagementContract,
   performingTransaction,
   setPerformingTransaction,
   selectedAccount,
   selectedContract,
+  majorityThreshold,
+  gasLimitForLastTransaction,
 }: {
   provider: ethers.JsonRpcProvider | null;
   accounts: Account[];
   voteContract: ethers.Contract | null;
+  candidateManagementContract: ethers.Contract | null;
   performingTransaction: boolean;
   setPerformingTransaction: Dispatch<SetStateAction<boolean>>;
   selectedAccount: string;
   selectedContract: ethers.Contract | undefined;
+  majorityThreshold: number;
+  gasLimitForLastTransaction: number;
 }) => {
   const [candidates, setCandidates] = useState<string[]>([]);
   const [owner, setOwner] = useState<string | null>(null);
   const [votes, setVotes] = useState<Record<string, number>>({});
   const [hasVotedObject, setHasVotedObject] = useState<Record<string, boolean>>({});
+
+  const [isSnackbarOpen, setIsSnackbarOpen] = useState<boolean>(false);
+  const snackbarMessageRef = useRef<string>('');
+
+  useEffect(() => {
+    if (!voteContract || !candidateManagementContract) {
+      return;
+    }
+
+    const voteCastListener = voteContract.filters.VoteCast();
+    voteContract
+      .on(voteCastListener, () => {
+        snackbarMessageRef.current = 'Vote casted successfully';
+        setIsSnackbarOpen(true);
+      })
+      .then(() => {
+        console.log('Vote cast listener added');
+      });
+
+    return () => {
+      voteContract.removeAllListeners(voteCastListener).then();
+    };
+  }, [voteContract, candidateManagementContract]);
 
   useEffect(() => {
     console.log('accounts: ', accounts);
@@ -39,44 +68,57 @@ const Accounts = ({
   useEffect(() => {
     console.log('hasVotedObject: ', hasVotedObject);
 
-    if (!accounts.length || Object.keys(hasVotedObject).length < accounts.length - 1) {
+    if (!accounts.length) {
+      return;
+    }
+
+    const isMajorityReached =
+      majorityThreshold && Object.keys(votes).some((candidate) => votes[candidate] >= majorityThreshold);
+
+    if (!isMajorityReached && Object.keys(hasVotedObject).length < accounts.length) {
       return;
     }
 
     console.log('All accounts have voted');
-    voteContract?.getWinner().then((winnerObject) => {
-      console.log('Winner: ', winnerObject[0], ' with ', Number(winnerObject[1]), ' votes');
 
-      provider?.getSigner().then((signer) => {
-        signer
-          ?.sendTransaction({ to: winnerObject[0], value: ethers.parseUnits(WIN_AMOUNT_ETH, 'ether') })
-          .then((transactionResponse) => {
-            console.log(`[transferEther] Transaction hash: ${transactionResponse.hash}`);
-            console.log(`[transferEther] Waiting for transaction to be mined...`);
-            transactionResponse.wait().then((receipt: any) => {
-              console.log(`[transferEther] Transaction was mined in block: ${receipt.blockNumber}`);
+    try {
+      voteContract?.getWinner().then((winnerObject) => {
+        console.log('Winner: ', winnerObject[0], ' with ', Number(winnerObject[1]), ' votes');
+
+        provider?.getSigner().then((signer) => {
+          signer
+            ?.sendTransaction({
+              to: winnerObject[0],
+              value: ethers.parseUnits(WIN_AMOUNT_ETH, 'ether'),
+              gasLimit: gasLimitForLastTransaction ? gasLimitForLastTransaction : null,
+            })
+            .then((transactionResponse) => {
+              console.log(`[transferEther] Transaction hash: ${transactionResponse.hash}`);
+              console.log(`[transferEther] Waiting for transaction to be mined...`);
+              transactionResponse.wait().then((receipt: any) => {
+                console.log(`[transferEther] Transaction was mined in block: ${receipt.blockNumber}`);
+              });
+              console.log(`[transferEther] Transaction was successful`);
+              console.log(`[transferEther] Winner received ${WIN_AMOUNT_ETH} ETH`);
+
+              snackbarMessageRef.current = `Winner received ${WIN_AMOUNT_ETH} ETH`;
+              setIsSnackbarOpen(true);
             });
-            console.log(`[transferEther] Transaction was successful`);
-            console.log(`[transferEther] Winner received ${WIN_AMOUNT_ETH} ETH`);
-
-            setVotes({});
-            setCandidates([]);
-            setHasVotedObject({});
-
-            voteContract?.resetVotingInstance().then(() => {
-              console.log('Voting instance reset');
-            });
-          });
+        });
       });
-    });
-  }, [hasVotedObject]);
+    } catch (error) {
+      console.error('[transferEther] Error transferring ether: ', error);
+      snackbarMessageRef.current = 'Error transferring ether';
+      setIsSnackbarOpen(true);
+    }
+  }, [hasVotedObject, majorityThreshold, voteContract, candidateManagementContract]);
 
   useEffect(() => {
     if (!voteContract) {
       return;
     }
 
-    voteContract.getOwner().then((fetchedOwner) => {
+    candidateManagementContract?.getOwner().then((fetchedOwner) => {
       setOwner(fetchedOwner);
     });
 
@@ -96,6 +138,7 @@ const Accounts = ({
     });
 
     voteContract.getHasVoted().then((fetchedHasVotedArray) => {
+      console.log('fetchedHasVotedArray: ', fetchedHasVotedArray);
       let _hasVotedObject: Record<string, boolean> = {};
 
       const len = fetchedHasVotedArray?.length;
@@ -106,13 +149,13 @@ const Accounts = ({
 
       setHasVotedObject(_hasVotedObject);
     });
-  }, [voteContract]);
+  }, [voteContract, candidateManagementContract]);
 
   const onAddAsCandidateClick = async (account: Account) => {
     try {
       setPerformingTransaction(true);
 
-      const transactionResponse = await voteContract?.addCandidate(account.address);
+      const transactionResponse = await candidateManagementContract?.addCandidate(account.address);
       await transactionResponse?.wait();
       console.log('[onAddAsCandidateClick] Added account as candidate');
 
@@ -121,6 +164,8 @@ const Accounts = ({
       setVotes({ ...votes, [account.address]: 0 });
     } catch (error) {
       console.error('[onAddAsCandidateClick] Error adding account as candidate: ', error);
+      snackbarMessageRef.current = 'Error adding account as candidate';
+      setIsSnackbarOpen(true);
     } finally {
       setPerformingTransaction(false);
     }
@@ -130,7 +175,7 @@ const Accounts = ({
     try {
       setPerformingTransaction(true);
 
-      const transactionResponse = await voteContract?.removeCandidate(account.address);
+      const transactionResponse = await candidateManagementContract?.removeCandidate(account.address);
       await transactionResponse?.wait();
       console.log('[onRemoveAsCandidateClick] Removed account as candidate');
 
@@ -141,6 +186,8 @@ const Accounts = ({
       setVotes(_votes);
     } catch (error) {
       console.error('[onRemoveAsCandidateClick] Error removing account as candidate: ', error);
+      snackbarMessageRef.current = 'Error removing account as candidate';
+      setIsSnackbarOpen(true);
     } finally {
       setPerformingTransaction(false);
     }
@@ -164,6 +211,8 @@ const Accounts = ({
       setHasVotedObject(_hasVotedObject);
     } catch (error) {
       console.error('[onVoteClick] Error voting for account: ', error);
+      snackbarMessageRef.current = 'Error voting for account';
+      setIsSnackbarOpen(true);
     } finally {
       setPerformingTransaction(false);
     }
@@ -182,7 +231,7 @@ const Accounts = ({
             <LocalComponents.AccountInformation>- Balance: {account.balance}</LocalComponents.AccountInformation>
           </LocalComponents.AccountInformationWrapper>
           <LocalComponents.AccountButtonsWrapper>
-            {selectedAccount === owner ? (
+            {selectedAccount === owner && (
               <>
                 {candidates.includes(account.address) ? (
                   <Button
@@ -202,22 +251,27 @@ const Accounts = ({
                   </Button>
                 )}
               </>
-            ) : (
-              <>
-                {selectedAccount && candidates.includes(account.address) && !hasVotedObject?.[selectedAccount] && (
-                  <Button
-                    variant='contained'
-                    color='success'
-                    onClick={() => onVoteClick(account)}
-                    disabled={performingTransaction}>
-                    Vote
-                  </Button>
-                )}
-              </>
             )}
+            <>
+              {selectedAccount && candidates.includes(account.address) && !hasVotedObject?.[selectedAccount] && (
+                <Button
+                  variant='contained'
+                  color='success'
+                  onClick={() => onVoteClick(account)}
+                  disabled={performingTransaction}>
+                  Vote
+                </Button>
+              )}
+            </>
           </LocalComponents.AccountButtonsWrapper>
         </LocalComponents.Account>
       ))}
+      <Snackbar
+        open={isSnackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setIsSnackbarOpen(false)}
+        message={snackbarMessageRef.current}
+      />
     </LocalComponents.Container>
   );
 };
