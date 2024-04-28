@@ -12,6 +12,7 @@ contract Voting {
     CandidateManagement public candidateManager;
 
     address[] public hasVotedKeys;
+    bool public hasVoteFinished = false;
 
     // Events
     event VoteCast(address voter, address candidate, uint totalVotes);
@@ -36,6 +37,8 @@ contract Voting {
         require(candidateManager.isValidCandidate(candidate), "Not a valid candidate.");
         votesReceived[candidate] += 1;
         hasVoted[msg.sender] = true;
+
+        hasVotedKeys.push(msg.sender);
         emit VoteCast(msg.sender, candidate, votesReceived[candidate]);
     }
 
@@ -62,7 +65,7 @@ contract Voting {
         return hasVotedKeys;
     }
 
-    function getWinner() public view returns (address winner, uint totalVotes) {
+    function getWinner() public returns (address winner, uint totalVotes) {
         uint highestVotes = 0;
         address highestVoter;
         address[] memory candidates = candidateManager.getCandidates();
@@ -72,6 +75,12 @@ contract Voting {
                 highestVoter = candidates[i];
             }
         }
+
+        hasVoteFinished = true;
         return (highestVoter, highestVotes);
+    }
+
+    function getHasVoteFinished() public view returns (bool) {
+        return hasVoteFinished;
     }
 }

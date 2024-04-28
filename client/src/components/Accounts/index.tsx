@@ -34,8 +34,17 @@ const Accounts = ({
   const [votes, setVotes] = useState<Record<string, number>>({});
   const [hasVotedObject, setHasVotedObject] = useState<Record<string, boolean>>({});
 
+  const [hasVoteFinished, setHasVoteFinished] = useState<boolean | null>(null);
+
   const [isSnackbarOpen, setIsSnackbarOpen] = useState<boolean>(false);
   const snackbarMessageRef = useRef<string>('');
+
+  useEffect(() => {
+    voteContract?.getHasVoteFinished().then((fetchedHasVoteFinished) => {
+      setHasVoteFinished(fetchedHasVoteFinished);
+      console.log('fetchedHasVoteFinished: ', fetchedHasVoteFinished);
+    });
+  }, [voteContract]);
 
   useEffect(() => {
     if (!voteContract || !candidateManagementContract) {
@@ -67,6 +76,16 @@ const Accounts = ({
 
   useEffect(() => {
     console.log('hasVotedObject: ', hasVotedObject);
+
+    if (hasVoteFinished) {
+      snackbarMessageRef.current = 'Voting has finished';
+      setIsSnackbarOpen(true);
+      return;
+    }
+
+    if (hasVoteFinished === null) {
+      return;
+    }
 
     if (!accounts.length) {
       return;
@@ -101,8 +120,10 @@ const Accounts = ({
               console.log(`[transferEther] Transaction was successful`);
               console.log(`[transferEther] Winner received ${WIN_AMOUNT_ETH} ETH`);
 
-              snackbarMessageRef.current = `Winner received ${WIN_AMOUNT_ETH} ETH`;
-              setIsSnackbarOpen(true);
+              setTimeout(() => {
+                snackbarMessageRef.current = `Winner received ${WIN_AMOUNT_ETH} ETH`;
+                setIsSnackbarOpen(true);
+              }, 3000);
             });
         });
       });
@@ -111,7 +132,7 @@ const Accounts = ({
       snackbarMessageRef.current = 'Error transferring ether';
       setIsSnackbarOpen(true);
     }
-  }, [hasVotedObject, majorityThreshold, voteContract, candidateManagementContract]);
+  }, [hasVotedObject, majorityThreshold, voteContract, candidateManagementContract, hasVoteFinished]);
 
   useEffect(() => {
     if (!voteContract) {
