@@ -30,6 +30,8 @@ const App = () => {
   const [finalTransactionGasEstimate, setFinalTransactionGasEstimate] = useState<number>(0);
   const [gasLimitForLastTransaction, setGasLimitForLastTransaction] = useState<number>(0);
 
+  const [prizeAmount, setPrizeAmount] = useState<number>(0);
+
   useEffect(() => {
     const provider = new ethers.JsonRpcProvider('http://localhost:7545');
     setProvider(provider);
@@ -37,6 +39,11 @@ const App = () => {
     provider.getSigner().then((signer) => {
       const contract = new ethers.Contract(Voting.networks['5777'].address, Voting.abi, signer);
       setVoteContract(contract);
+
+      const prizeAmountPromise = contract.getPrizeAmount();
+      prizeAmountPromise.then((_prizeAmount) => {
+        setPrizeAmount(Number(ethers.formatEther(_prizeAmount)));
+      });
 
       const candidateManagementContract = new ethers.Contract(
         CandidateManagement.networks['5777'].address,
@@ -106,19 +113,19 @@ const App = () => {
   }, [voteContract, provider, accounts, candidateManagementContract]);
 
   useEffect(() => {
-    if (!provider || !accounts?.[0]?.address) {
+    if (!provider || !accounts?.[0]?.address || !prizeAmount) {
       return;
     }
 
     provider
-      .estimateGas({ to: accounts[0].address, value: ethers.parseUnits(WIN_AMOUNT_ETH, 'ether') })
+      .estimateGas({ to: accounts[0].address, value: ethers.parseUnits(prizeAmount.toString(), 'ether') })
       .then((gasEstimate) => {
         setFinalTransactionGasEstimate(Number(gasEstimate));
       })
       .catch((error) => {
         console.error('Error estimating gas:', error.message);
       });
-  }, [provider, accounts, voteContract, candidateManagementContract]);
+  }, [provider, accounts, voteContract, candidateManagementContract, prizeAmount]);
 
   return (
     <LocalComponents.Container>
@@ -133,6 +140,7 @@ const App = () => {
         selectedContract={selectedContract}
         majorityThreshold={majorityThreshold}
         gasLimitForLastTransaction={gasLimitForLastTransaction}
+        prizeAmount={prizeAmount}
       />
       <LocalComponents.RightWrapper>
         <FormControl fullWidth>
@@ -154,14 +162,22 @@ const App = () => {
               </MenuItem>
             ))}
           </Select>
+        </FormControl>
+        <LocalComponents.InputsWrapper>
           <LocalComponents.GasEstimate>
             Final transaction gas estimate: {finalTransactionGasEstimate}
           </LocalComponents.GasEstimate>
-        </FormControl>
-        <Input
-          placeholder='Gas limit'
-          onChange={(event) => setGasLimitForLastTransaction(Number(event.target.value))}
-        />
+          <Input
+            placeholder='Gas limit'
+            onChange={(event) => setGasLimitForLastTransaction(Number(event.target.value))}
+          />
+          <LocalComponents.GasEstimate>Prize amount</LocalComponents.GasEstimate>
+          <Input
+            placeholder='Prize amount'
+            value={prizeAmount}
+            onChange={(event) => setPrizeAmount(Number(event.target.value))}
+          />
+        </LocalComponents.InputsWrapper>
       </LocalComponents.RightWrapper>
     </LocalComponents.Container>
   );

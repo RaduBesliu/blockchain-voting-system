@@ -1,9 +1,12 @@
 const Voting = artifacts.require("Voting");
 const CandidateManagement = artifacts.require("CandidateManagement");
+const PrizeManager = artifacts.require("PrizeManager");
 
 contract("Voting System", (accounts) => {
   let voting;
   let candidateManagement;
+  let prizeManager;
+
   const owner = accounts[0];
   const nonOwner = accounts[1];
   const candidate1 = accounts[2];
@@ -12,8 +15,13 @@ contract("Voting System", (accounts) => {
   const voter2 = accounts[5];
 
   beforeEach(async () => {
+    prizeManager = await PrizeManager.new(100000, { from: owner });
     candidateManagement = await CandidateManagement.new({ from: owner });
-    voting = await Voting.new(candidateManagement.address, { from: owner });
+    voting = await Voting.new(
+      candidateManagement.address,
+      prizeManager.address,
+      { from: owner },
+    );
 
     await candidateManagement.addCandidate(candidate1, { from: owner });
     await candidateManagement.addCandidate(candidate2, { from: owner });
@@ -88,12 +96,17 @@ contract("Voting System", (accounts) => {
       await voting.vote(candidate1, { from: voter2 });
       await voting.vote(candidate2, { from: accounts[6] });
 
-      const winnerObject = await voting.getWinner();
-      const winner = winnerObject.winner;
-      const totalVotes = winnerObject.totalVotes;
+      voting.getWinner().then((winnerObject) => {
+        const winner = winnerObject.mostVoted;
+        const totalVotes = winnerObject.mostVotes;
 
-      assert.equal(winner, candidate1, "Candidate 1 should be the winner.");
-      assert.equal(totalVotes.toNumber(), 2, "There should be 2 total votes.");
+        assert.equal(winner, candidate1, "Candidate 1 should be the winner.");
+        assert.equal(
+          totalVotes.toNumber(),
+          2,
+          "There should be 2 total votes.",
+        );
+      });
     });
   });
 });

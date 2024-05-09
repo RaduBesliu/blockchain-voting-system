@@ -19,4 +19,10 @@ export const LocalComponents = {
   RightWrapper: styled.div`
     width: 100%;
   `,
+
+  InputsWrapper: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  `,
 };

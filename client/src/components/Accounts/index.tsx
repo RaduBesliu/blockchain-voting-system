@@ -3,7 +3,6 @@ import { Dispatch, SetStateAction, useEffect, useRef, useState } from 'react';
 import { Account } from '../../types.ts';
 import { Button } from '@mui/material';
 import { ethers } from 'ethers';
-import { WIN_AMOUNT_ETH } from '../../App.tsx';
 import Snackbar from '@mui/material/Snackbar';
 
 const Accounts = ({
@@ -17,6 +16,7 @@ const Accounts = ({
   selectedContract,
   majorityThreshold,
   gasLimitForLastTransaction,
+  prizeAmount,
 }: {
   provider: ethers.JsonRpcProvider | null;
   accounts: Account[];
@@ -28,6 +28,7 @@ const Accounts = ({
   selectedContract: ethers.Contract | undefined;
   majorityThreshold: number;
   gasLimitForLastTransaction: number;
+  prizeAmount: number;
 }) => {
   const [candidates, setCandidates] = useState<string[]>([]);
   const [owner, setOwner] = useState<string | null>(null);
@@ -61,10 +62,47 @@ const Accounts = ({
         console.log('Vote cast listener added');
       });
 
+    const winnerDetailsListener = voteContract.filters.WinnerDetails();
+    voteContract
+      .on(winnerDetailsListener, (winnerObject) => {
+        const mostVoted = winnerObject.args[0];
+        const mostVotes = winnerObject.args[1];
+
+        console.log('Winner: ', mostVoted, ' with ', Number(mostVotes), ' votes');
+        console.log('Prize amount: ', prizeAmount);
+
+        provider?.getSigner().then((signer) => {
+          signer
+            ?.sendTransaction({
+              to: mostVoted,
+              value: ethers.parseUnits(prizeAmount.toString(), 'ether'),
+              gasLimit: gasLimitForLastTransaction ? gasLimitForLastTransaction : null,
+            })
+            .then((transactionResponse) => {
+              console.log(`[transferEther] Transaction hash: ${transactionResponse.hash}`);
+              console.log(`[transferEther] Waiting for transaction to be mined...`);
+              transactionResponse.wait().then((receipt: any) => {
+                console.log(`[transferEther] Transaction was mined in block: ${receipt.blockNumber}`);
+              });
+              console.log(`[transferEther] Transaction was successful`);
+              console.log(`[transferEther] Winner received ${prizeAmount} ETH`);
+
+              setTimeout(() => {
+                snackbarMessageRef.current = `Winner received ${prizeAmount} ETH`;
+                setIsSnackbarOpen(true);
+              }, 3000);
+            });
+        });
+      })
+      .then(() => {
+        console.log('Winner details listener added');
+      });
+
     return () => {
       voteContract.removeAllListeners(voteCastListener).then();
+      voteContract.removeAllListeners(winnerDetailsListener).then();
     };
-  }, [voteContract, candidateManagementContract]);
+  }, [voteContract, candidateManagementContract, prizeAmount, gasLimitForLastTransaction, provider]);
 
   useEffect(() => {
     console.log('accounts: ', accounts);
@@ -101,32 +139,7 @@ const Accounts = ({
     console.log('All accounts have voted');
 
     try {
-      voteContract?.getWinner().then((winnerObject) => {
-        console.log('Winner: ', winnerObject[0], ' with ', Number(winnerObject[1]), ' votes');
-
-        provider?.getSigner().then((signer) => {
-          signer
-            ?.sendTransaction({
-              to: winnerObject[0],
-              value: ethers.parseUnits(WIN_AMOUNT_ETH, 'ether'),
-              gasLimit: gasLimitForLastTransaction ? gasLimitForLastTransaction : null,
-            })
-            .then((transactionResponse) => {
-              console.log(`[transferEther] Transaction hash: ${transactionResponse.hash}`);
-              console.log(`[transferEther] Waiting for transaction to be mined...`);
-              transactionResponse.wait().then((receipt: any) => {
-                console.log(`[transferEther] Transaction was mined in block: ${receipt.blockNumber}`);
-              });
-              console.log(`[transferEther] Transaction was successful`);
-              console.log(`[transferEther] Winner received ${WIN_AMOUNT_ETH} ETH`);
-
-              setTimeout(() => {
-                snackbarMessageRef.current = `Winner received ${WIN_AMOUNT_ETH} ETH`;
-                setIsSnackbarOpen(true);
-              }, 3000);
-            });
-        });
-      });
+      voteContract?.getWinner().then();
     } catch (error) {
       console.error('[transferEther] Error transferring ether: ', error);
       snackbarMessageRef.current = 'Error transferring ether';

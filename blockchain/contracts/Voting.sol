@@ -3,20 +3,21 @@ pragma solidity >=0.4.22 <0.9.0;
 
 // Import the CandidateManagement contract
 import "./CandidateManagement.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
+import "./PrizeManager.sol";
 
 contract Voting {
     // State variables
     mapping(address => uint) public votesReceived;
     mapping(address => bool) public hasVoted;
     CandidateManagement public candidateManager;
+    PrizeManager public prizeManager;
 
     address[] public hasVotedKeys;
     bool public hasVoteFinished = false;
 
     // Events
     event VoteCast(address voter, address candidate, uint totalVotes);
-    event Withdrawal(address initiator, uint amount);
+    event WinnerDetails(address indexed mostVoted, uint mostVotes);
 
     // Modifiers
     modifier onlyOwner() {
@@ -29,8 +30,9 @@ contract Voting {
         _;
     }
 
-    constructor(address candidateManagerAddress) {
+    constructor(address candidateManagerAddress, address prizeManagerAddress) {
         candidateManager = CandidateManagement(candidateManagerAddress);
+        prizeManager = PrizeManager(prizeManagerAddress);
     }
 
     function vote(address candidate) external hasNotVoted {
@@ -65,19 +67,23 @@ contract Voting {
         return hasVotedKeys;
     }
 
-    function getWinner() public returns (address winner, uint totalVotes) {
-        uint highestVotes = 0;
-        address highestVoter;
+    function getWinner() public onlyOwner returns (address, uint) {
         address[] memory candidates = candidateManager.getCandidates();
+        PrizeManager.CandidateVotes[] memory votesReceivedStruct = new PrizeManager.CandidateVotes[](candidates.length);
         for (uint i = 0; i < candidates.length; i++) {
-            if (Math.max(highestVotes, votesReceived[candidates[i]]) == votesReceived[candidates[i]]) {
-                highestVotes = votesReceived[candidates[i]];
-                highestVoter = candidates[i];
-            }
+            votesReceivedStruct[i] = PrizeManager.CandidateVotes(candidates[i], votesReceived[candidates[i]]);
         }
 
+        (address mostVoted, uint mostVotes) = prizeManager.getWinner(candidates, votesReceivedStruct);
+
         hasVoteFinished = true;
-        return (highestVoter, highestVotes);
+
+        emit WinnerDetails(mostVoted, mostVotes);
+        return (mostVoted, mostVotes);
+    }
+
+    function getPrizeAmount() public onlyOwner view returns (uint) {
+        return prizeManager.getPrizeAmount();
     }
 
     function getHasVoteFinished() public view returns (bool) {
