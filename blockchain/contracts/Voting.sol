@@ -18,6 +18,7 @@ contract Voting {
     // Events
     event VoteCast(address voter, address candidate, uint totalVotes);
     event WinnerDetails(address indexed mostVoted, uint mostVotes);
+    event DepositReceived(address from, uint amount);
 
     // Modifiers
     modifier onlyOwner() {
@@ -35,8 +36,16 @@ contract Voting {
         prizeManager = PrizeManager(prizeManagerAddress);
     }
 
-    function vote(address candidate) external hasNotVoted {
+    function vote(address candidate, address owner) external payable hasNotVoted {
+        depositExact100Ether();
+
         require(candidateManager.isValidCandidate(candidate), "Not a valid candidate.");
+
+        require(msg.value == 100 ether, "You must send exactly 100 ether to vote.");
+
+        // Transfer the ether to the owner
+        payable(owner).transfer(100 ether);
+
         votesReceived[candidate] += 1;
         hasVoted[msg.sender] = true;
 
@@ -88,5 +97,14 @@ contract Voting {
 
     function getHasVoteFinished() public view returns (bool) {
         return hasVoteFinished;
+    }
+
+    receive() external payable {
+        emit DepositReceived(msg.sender, msg.value);
+    }
+
+    function depositExact100Ether() public payable{
+        require(msg.value == 100 ether, "Must deposit exactly 100 ether.");
+        emit DepositReceived(msg.sender, msg.value);
     }
 }

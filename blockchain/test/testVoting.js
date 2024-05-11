@@ -61,14 +61,20 @@ contract("Voting System", (accounts) => {
 
   describe("Voting Mechanics", () => {
     it("should allow a valid vote", async () => {
-      await voting.vote(candidate1, { from: voter1 });
+      await voting.vote(candidate1, owner, {
+        from: voter1,
+        value: web3.utils.toWei("100", "ether"),
+      });
       const votes = await voting.getTotalVotes(candidate1);
       assert.equal(votes.toNumber(), 1, "Candidate should have 1 vote.");
     });
 
     it("should prevent voting for an invalid candidate", async () => {
       try {
-        await voting.vote(accounts[6], { from: voter1 });
+        await voting.vote(accounts[6], owner, {
+          from: voter1,
+          value: web3.utils.toWei("100", "ether"),
+        });
         assert.fail("Should not be able to vote for an invalid candidate.");
       } catch (error) {
         assert.include(error.message, "revert", "Not a valid candidate.");
@@ -76,9 +82,15 @@ contract("Voting System", (accounts) => {
     });
 
     it("should prevent double voting", async () => {
-      await voting.vote(candidate1, { from: voter1 });
+      await voting.vote(candidate1, owner, {
+        from: voter1,
+        value: web3.utils.toWei("100", "ether"),
+      });
       try {
-        await voting.vote(candidate1, { from: voter1 });
+        await voting.vote(candidate1, owner, {
+          from: voter1,
+          value: web3.utils.toWei("100", "ether"),
+        });
         assert.fail("Should not allow double voting from the same address.");
       } catch (error) {
         assert.include(
@@ -92,9 +104,18 @@ contract("Voting System", (accounts) => {
 
   describe("Determine winner", () => {
     it("should correctly determine the winner", async () => {
-      await voting.vote(candidate1, { from: voter1 });
-      await voting.vote(candidate1, { from: voter2 });
-      await voting.vote(candidate2, { from: accounts[6] });
+      await voting.vote(candidate1, owner, {
+        from: voter1,
+        value: web3.utils.toWei("100", "ether"),
+      });
+      await voting.vote(candidate1, owner, {
+        from: voter2,
+        value: web3.utils.toWei("100", "ether"),
+      });
+      await voting.vote(candidate2, owner, {
+        from: accounts[6],
+        value: web3.utils.toWei("100", "ether"),
+      });
 
       voting.getWinner().then((winnerObject) => {
         const winner = winnerObject.mostVoted;
