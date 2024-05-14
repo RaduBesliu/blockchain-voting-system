@@ -231,7 +231,9 @@ const Accounts = ({
     try {
       setPerformingTransaction(true);
 
-      const transactionResponse = await selectedContract?.vote(account.address);
+      const transactionResponse = await selectedContract?.vote(account.address, owner, {
+        value: ethers.parseEther('100'),
+      });
       await transactionResponse.wait();
 
       console.log('[onVoteClick] Voted for account');

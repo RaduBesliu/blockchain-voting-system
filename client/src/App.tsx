@@ -32,6 +32,28 @@ const App = () => {
 
   const [prizeAmount, setPrizeAmount] = useState<number>(0);
 
+  const [forceRefresh, setForceRefresh] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!voteContract) {
+      return;
+    }
+
+    const voteCastListener = voteContract.filters.VoteCast();
+    voteContract
+      .on(voteCastListener, () => {
+        console.log('Vote cast event refresh');
+        setForceRefresh((prev) => !prev);
+      })
+      .then(() => {
+        console.log('Vote cast listener added');
+      });
+
+    return () => {
+      voteContract.removeAllListeners(voteCastListener);
+    };
+  }, [voteContract, candidateManagementContract]);
+
   useEffect(() => {
     const provider = new ethers.JsonRpcProvider('http://localhost:7545');
     setProvider(provider);
@@ -70,7 +92,7 @@ const App = () => {
         );
       });
     });
-  }, [provider]);
+  }, [provider, forceRefresh]);
 
   useEffect(() => {
     if (!provider) {
