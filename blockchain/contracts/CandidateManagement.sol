@@ -1,21 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.4.22 <0.9.0;
+pragma solidity >=0.8.13 <0.9.0;
 
-contract CandidateManagement {
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract CandidateManagement is Ownable {
     address[] public candidates;
-    address public owner;
-
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only the owner can call this function.");
-        _;
-    }
-
-    function getOwner() public view returns (address) {
-        return owner;
-    }
 
     constructor() {
-        owner = msg.sender;
+        transferOwnership(msg.sender);
     }
 
     function addCandidate(address candidate) public onlyOwner {

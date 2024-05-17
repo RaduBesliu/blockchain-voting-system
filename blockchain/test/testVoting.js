@@ -1,11 +1,13 @@
 const Voting = artifacts.require("Voting");
 const CandidateManagement = artifacts.require("CandidateManagement");
 const PrizeManager = artifacts.require("PrizeManager");
+const VotingToken = artifacts.require("VotingToken");
 
 contract("Voting System", (accounts) => {
   let voting;
   let candidateManagement;
   let prizeManager;
+  let votingToken;
 
   const owner = accounts[0];
   const nonOwner = accounts[1];
@@ -17,9 +19,11 @@ contract("Voting System", (accounts) => {
   beforeEach(async () => {
     prizeManager = await PrizeManager.new(100000, { from: owner });
     candidateManagement = await CandidateManagement.new({ from: owner });
+    votingToken = await VotingToken.new({ from: owner });
     voting = await Voting.new(
       candidateManagement.address,
       prizeManager.address,
+      votingToken.address,
       { from: owner },
     );
 
@@ -61,6 +65,14 @@ contract("Voting System", (accounts) => {
 
   describe("Voting Mechanics", () => {
     it("should allow a valid vote", async () => {
+      await votingToken.mint(voter1, web3.utils.toWei("100", "ether"), {
+        from: owner,
+      });
+      await votingToken.approve(
+        voting.address,
+        web3.utils.toWei("100", "ether"),
+        { from: voter1 },
+      );
       await voting.vote(candidate1, owner, {
         from: voter1,
         value: web3.utils.toWei("100", "ether"),
@@ -71,6 +83,14 @@ contract("Voting System", (accounts) => {
 
     it("should prevent voting for an invalid candidate", async () => {
       try {
+        await votingToken.mint(voter1, web3.utils.toWei("100", "ether"), {
+          from: owner,
+        });
+        await votingToken.approve(
+          voting.address,
+          web3.utils.toWei("100", "ether"),
+          { from: voter1 },
+        );
         await voting.vote(accounts[6], owner, {
           from: voter1,
           value: web3.utils.toWei("100", "ether"),
@@ -82,6 +102,14 @@ contract("Voting System", (accounts) => {
     });
 
     it("should prevent double voting", async () => {
+      await votingToken.mint(voter1, web3.utils.toWei("100", "ether"), {
+        from: owner,
+      });
+      await votingToken.approve(
+        voting.address,
+        web3.utils.toWei("100", "ether"),
+        { from: voter1 },
+      );
       await voting.vote(candidate1, owner, {
         from: voter1,
         value: web3.utils.toWei("100", "ether"),
@@ -104,6 +132,22 @@ contract("Voting System", (accounts) => {
 
   describe("Determine winner", () => {
     it("should correctly determine the winner", async () => {
+      await votingToken.mint(voter1, web3.utils.toWei("100", "ether"), {
+        from: owner,
+      });
+      await votingToken.mint(voter2, web3.utils.toWei("100", "ether"), {
+        from: owner,
+      });
+      await votingToken.approve(
+        voting.address,
+        web3.utils.toWei("100", "ether"),
+        { from: voter1 },
+      );
+      await votingToken.approve(
+        voting.address,
+        web3.utils.toWei("100", "ether"),
+        { from: voter2 },
+      );
       await voting.vote(candidate1, owner, {
         from: voter1,
         value: web3.utils.toWei("100", "ether"),

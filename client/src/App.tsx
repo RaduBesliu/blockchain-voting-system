@@ -3,6 +3,7 @@ import { LocalComponents } from './styled.ts';
 import Accounts from './components/Accounts';
 import Voting from '../../blockchain/build/contracts/Voting.json';
 import CandidateManagement from '../../blockchain/build/contracts/CandidateManagement.json';
+import VotingToken from '../../blockchain/build/contracts/VotingToken.json';
 import { useEffect, useState } from 'react';
 import { ethers } from 'ethers';
 import { Account } from './types.ts';
@@ -14,6 +15,7 @@ const App = () => {
   const [provider, setProvider] = useState<ethers.JsonRpcProvider | null>(null);
   const [voteContract, setVoteContract] = useState<ethers.Contract | null>(null);
   const [candidateManagementContract, setCandidateManagementContract] = useState<ethers.Contract | null>(null);
+  const [votingTokenContract, setVotingTokenContract] = useState<ethers.Contract | null>(null);
 
   const [performingTransaction, setPerformingTransaction] = useState<boolean>(false);
 
@@ -72,12 +74,16 @@ const App = () => {
         CandidateManagement.abi,
         signer,
       );
+
+      const votingTokenContract = new ethers.Contract(VotingToken.networks['5777'].address, VotingToken.abi, signer);
+
       setCandidateManagementContract(candidateManagementContract);
+      setVotingTokenContract(votingTokenContract);
     });
   }, []);
 
   useEffect(() => {
-    if (!provider) {
+    if (!provider || !votingTokenContract) {
       return;
     }
 
@@ -91,8 +97,13 @@ const App = () => {
           })),
         );
       });
+      // mint 1 token to each account
+      const mintPromises = fetchedAccounts.map((account) => votingTokenContract.mint(account, 1));
+      Promise.all(mintPromises).then(() => {
+        console.log('Tokens minted');
+      });
     });
-  }, [provider, forceRefresh]);
+  }, [provider, forceRefresh, votingTokenContract]);
 
   useEffect(() => {
     if (!provider) {
@@ -138,6 +149,8 @@ const App = () => {
     if (!provider || !accounts?.[0]?.address || !prizeAmount) {
       return;
     }
+
+    console.log(prizeAmount);
 
     provider
       .estimateGas({ to: accounts[0].address, value: ethers.parseUnits(prizeAmount.toString(), 'ether') })

@@ -152,7 +152,7 @@ const Accounts = ({
       return;
     }
 
-    candidateManagementContract?.getOwner().then((fetchedOwner) => {
+    candidateManagementContract?.owner().then((fetchedOwner) => {
       setOwner(fetchedOwner);
     });
 

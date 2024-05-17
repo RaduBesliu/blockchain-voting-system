@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.4.22 <0.9.0;
+pragma solidity >=0.8.13 <0.9.0;
 
 // Import the CandidateManagement contract
 import "./CandidateManagement.sol";
 import "./PrizeManager.sol";
+import "./VotingToken.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Voting {
+contract Voting is Ownable {
     // State variables
     mapping(address => uint) public votesReceived;
     mapping(address => bool) public hasVoted;
     CandidateManagement public candidateManager;
     PrizeManager public prizeManager;
+    VotingToken public votingToken;
 
     address[] public hasVotedKeys;
     bool public hasVoteFinished = false;
@@ -21,26 +24,19 @@ contract Voting {
     event DepositReceived(address from, uint amount);
 
     // Modifiers
-    modifier onlyOwner() {
-        require(msg.sender == candidateManager.owner(), "Only the owner can call this function.");
-        _;
-    }
-
     modifier hasNotVoted() {
         require(!hasVoted[msg.sender], "You have already cast your vote.");
         _;
     }
 
-    constructor(address candidateManagerAddress, address prizeManagerAddress) {
+    constructor(address candidateManagerAddress, address prizeManagerAddress, address votingTokenAddress) {
         candidateManager = CandidateManagement(candidateManagerAddress);
         prizeManager = PrizeManager(prizeManagerAddress);
+        votingToken = VotingToken(votingTokenAddress);
     }
 
     function vote(address candidate, address owner) external payable hasNotVoted {
-        depositExact100Ether();
-
         require(candidateManager.isValidCandidate(candidate), "Not a valid candidate.");
-
         require(msg.value == 100 ether, "You must send exactly 100 ether to vote.");
 
         // Transfer the ether to the owner
@@ -103,7 +99,7 @@ contract Voting {
         emit DepositReceived(msg.sender, msg.value);
     }
 
-    function depositExact100Ether() public payable{
+    function depositExact100Ether() public payable {
         require(msg.value == 100 ether, "Must deposit exactly 100 ether.");
         emit DepositReceived(msg.sender, msg.value);
     }
