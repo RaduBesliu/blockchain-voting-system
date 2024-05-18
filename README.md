@@ -29,6 +29,7 @@ Tokens are minted and burned by the contract owner to manage voter eligibility.
 
 ## Deployment:
 📝Contracts are deployed using Truffle and tested locally with Ganache.
+
 📝A migration script deploys all contracts in the correct order and sets up initial states.
 
 
