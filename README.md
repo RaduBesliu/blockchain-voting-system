@@ -33,7 +33,8 @@ Tokens are minted and burned by the contract owner to manage voter eligibility.
 📝A migration script deploys all contracts in the correct order and sets up initial states.
 
 
-**Tests** are written in JavaScript to verify the functionality of each contract, including candidate management, voting mechanics, winner determination, and oracle integration.
+## Tests
+* JavaScript file where the functionality of each contract, including candidate management, voting mechanics, winner determination, and oracle integration is verified.
 
 ## Oracle Integration:
 
