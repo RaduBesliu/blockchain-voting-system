@@ -139,7 +139,7 @@ const Accounts = ({
     console.log('All accounts have voted');
 
     try {
-      voteContract?.getWinner().then();
+      voteContract?.getWinner({ from: owner }).then();
     } catch (error) {
       console.error('[transferEther] Error transferring ether: ', error);
       snackbarMessageRef.current = 'Error transferring ether';

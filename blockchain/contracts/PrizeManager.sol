@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13 <0.9.0;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
@@ -27,7 +26,7 @@ contract PrizeManager is Ownable {
         return prizeAmount;
     }
 
-    function getWinner(address[] memory candidates, CandidateVotes[] memory votesReceivedStruct) public onlyOwner returns (address, uint) {
+    function getWinner(address[] memory candidates, CandidateVotes[] memory votesReceivedStruct) public returns (address, uint) {
         uint mostVotes = 0;
         address mostVoted;
         for (uint i = 0; i < candidates.length; i++) {

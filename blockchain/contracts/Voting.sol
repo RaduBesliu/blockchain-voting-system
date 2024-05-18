@@ -1,7 +1,5 @@
-// SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13 <0.9.0;
 
-// Import the CandidateManagement contract
 import "./CandidateManagement.sol";
 import "./PrizeManager.sol";
 import "./VotingToken.sol";
@@ -39,7 +37,6 @@ contract Voting is Ownable {
         require(candidateManager.isValidCandidate(candidate), "Not a valid candidate.");
         require(msg.value == 100 ether, "You must send exactly 100 ether to vote.");
 
-        // Transfer the ether to the owner
         payable(owner).transfer(100 ether);
 
         votesReceived[candidate] += 1;
@@ -72,7 +69,7 @@ contract Voting is Ownable {
         return hasVotedKeys;
     }
 
-    function getWinner() public onlyOwner returns (address, uint) {
+    function getWinner() public returns (address, uint) {
         address[] memory candidates = candidateManager.getCandidates();
         PrizeManager.CandidateVotes[] memory votesReceivedStruct = new PrizeManager.CandidateVotes[](candidates.length);
         for (uint i = 0; i < candidates.length; i++) {

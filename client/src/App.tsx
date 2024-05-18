@@ -9,8 +9,6 @@ import { ethers } from 'ethers';
 import { Account } from './types.ts';
 import { Select, MenuItem, InputLabel, FormControl, Input } from '@mui/material';
 
-export const WIN_AMOUNT_ETH = '5000000';
-
 const App = () => {
   const [provider, setProvider] = useState<ethers.JsonRpcProvider | null>(null);
   const [voteContract, setVoteContract] = useState<ethers.Contract | null>(null);
@@ -52,7 +50,7 @@ const App = () => {
       });
 
     return () => {
-      voteContract.removeAllListeners(voteCastListener);
+      voteContract.removeAllListeners(voteCastListener).then();
     };
   }, [voteContract, candidateManagementContract]);
 
