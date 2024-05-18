@@ -7,7 +7,7 @@ The Blockchain Voting System is a decentralized application (dApp) designed to f
 This system ensures that votes are immutable and verifiable, providing a trustworthy voting mechanism.
 
 
-##Smart Contracts
+## Smart Contracts
 
 ➡️ CandidateManager.sol:
 * Owners can add and remove candidates.
@@ -36,10 +36,10 @@ Tokens are minted and burned by the contract owner to manage voter eligibility.
 
 ## Oracle Integration:
 
-*The system uses a custom oracle to fetch and update the latest ETH/USD price.
-*This price can be manually set by the contract owner for testing purposes.
+* The system uses a custom oracle to fetch and update the latest ETH/USD price.
+* This price can be manually set by the contract owner for testing purposes.
 
-##ERC-20 Token:
+## ERC-20 Token:
 
-*Voting tokens are implemented using the ERC-20 standard.
-*Tokens are minted and burned by the contract owner to manage voter eligibility.
+* Voting tokens are implemented using the ERC-20 standard.
+* Tokens are minted and burned by the contract owner to manage voter eligibility.
